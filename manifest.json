@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "YouTube VOD Review Panel",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Load custom timestamp/comment notes and jump the YouTube player.",
   "permissions": ["storage"],
   "host_permissions": ["https://www.youtube.com/*"],
