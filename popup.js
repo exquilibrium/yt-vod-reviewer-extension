@@ -1,0 +1,76 @@
+const AUTO_SHOW_KEY = "vod_auto_show_v1";
+
+function setStatus(msg) {
+  document.getElementById("status").textContent = msg;
+}
+
+function getActiveTab() {
+  return new Promise((resolve) => {
+    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+      resolve(tabs && tabs.length ? tabs[0] : null);
+    });
+  });
+}
+
+function sendToContentScript(tabId, message) {
+  return new Promise((resolve) => {
+    chrome.tabs.sendMessage(tabId, message, (resp) => {
+      // If the tab has no content script (not a YouTube watch page), runtime.lastError can appear.
+      resolve({ resp, lastError: chrome.runtime.lastError });
+    });
+  });
+}
+
+async function loadAutoShowSetting() {
+  return new Promise((resolve) => {
+    chrome.storage.local.get([AUTO_SHOW_KEY], (res) => {
+      resolve(Boolean(res[AUTO_SHOW_KEY]));
+    });
+  });
+}
+
+async function saveAutoShowSetting(value) {
+  return new Promise((resolve) => {
+    chrome.storage.local.set({ [AUTO_SHOW_KEY]: value }, () => resolve());
+  });
+}
+
+document.addEventListener("DOMContentLoaded", async () => {
+  const autoShowChk = document.getElementById("autoShowChk");
+  const showWindowBtn = document.getElementById("showWindowBtn");
+
+  // Initialize checkbox from storage
+  autoShowChk.checked = await loadAutoShowSetting();
+
+  autoShowChk.addEventListener("change", async () => {
+    await saveAutoShowSetting(autoShowChk.checked);
+    setStatus(autoShowChk.checked ? "Auto show enabled." : "Auto show disabled.");
+
+    // Optional: tell the current tab immediately (if it's a watch page)
+    const tab = await getActiveTab();
+    if (tab?.id) {
+      await sendToContentScript(tab.id, {
+        type: "SET_AUTO_SHOW",
+        value: autoShowChk.checked
+      });
+    }
+  });
+
+  showWindowBtn.addEventListener("click", async () => {
+    const tab = await getActiveTab();
+    if (!tab?.id) {
+      setStatus("No active tab.");
+      return;
+    }
+
+    const { lastError } = await sendToContentScript(tab.id, { type: "SHOW_WINDOW" });
+
+    if (lastError) {
+      setStatus("Open a YouTube watch page to use this.");
+      return;
+    }
+
+    setStatus("Window shown.");
+    window.close(); // optional: close popup after action
+  });
+});
