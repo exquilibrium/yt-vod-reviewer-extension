@@ -186,11 +186,17 @@
     }
 
 
-    function loadFromStorage() {
-        return new Promise(resolve => {
-            chrome.storage.local.get([STORAGE_KEY], (res) => resolve(res[STORAGE_KEY] || null));
+    function loadFromStorage(cb) {
+        chrome.storage.local.get(["vodReviewNotes_v1"], (res) => {
+            // If the extension context is invalid, Chrome sets runtime.lastError
+            if (chrome.runtime.lastError) {
+                cb(null);
+                return;
+            }
+            cb(res["vodReviewNotes_v1"] || null);
         });
     }
+
 
     function saveToStorage(data) {
         return new Promise(resolve => {
@@ -224,8 +230,13 @@
       </div>
       <div id="vodReviewBody">
         <div id="vodReviewHint">
-          Format: <code>timestamp - comment</code><br/>
-          Example: <code>05:42 - Overextension, lost spacing</code>
+          Format:
+            <ul style="padding-left: 1.5em; list-style-position: outside;">
+                <li>Section: <code>'# '</code></li>
+                <li>Info Box: <code>'!- '</code></li>
+                <li>Timestamp: <code>'MM:SS - '</code></li>
+                <li>Timestamp: <code>'HH:MM:SS - '</code></li>
+            </ul>
         </div>
         <div id="vodList"></div>
       </div>
@@ -259,7 +270,7 @@
 
         root.querySelector("#vodClearBtn").addEventListener("click", async () => {
             await saveToStorage(null);
-            renderList([]);
+            renderSections([]);
             setStatus("Cleared notes.");
         });
 
@@ -380,28 +391,33 @@
             }
         }
 
-        async function renderFromStored() {
-            const stored = await loadFromStorage();
-            const currentVid = new URL(location.href).searchParams.get("v");
-            if (!stored || !stored.entries) {
-                renderList([]);
-                setStatus("No notes loaded.");
-                return;
-            }
+        function renderFromStored() {
+            loadFromStorage((stored) => {
+                // If the content script was torn down, just stop
+                if (!stored || !stored.sections) {
+                    renderSections([]);
+                    setStatus("No notes loaded.");
+                    return;
+                }
 
-            // If you want: only show notes when videoId matches
-            if (stored.videoId && stored.videoId !== currentVid) {
-                renderList([]);
-                setStatus("Notes exist, but for a different video.");
-                return;
-            }
+                const currentVid = new URL(location.href).searchParams.get("v");
 
-            renderList(stored.entries);
-            setStatus(`Loaded ${stored.entries.length} notes.`);
+                if (stored.videoId && stored.videoId !== currentVid) {
+                    renderSections([]);
+                    setStatus("Notes exist, but for a different video.");
+                    return;
+                }
+
+                renderSections(stored.sections);
+                const count = stored.sections.reduce((acc, s) => acc + (s.items?.length || 0), 0);
+                setStatus(`Loaded ${count} notes.`);
+            });
         }
+
 
         // Initial render
         renderFromStored();
+
     }
 
     // --- YouTube is a SPA, so watch navigation changes ---
