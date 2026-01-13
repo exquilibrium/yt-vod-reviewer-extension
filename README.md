@@ -22,6 +22,17 @@ Group related notes with `# ` (hash + space).
 
 ---
 
+### Info boxes (`!- `)
+
+Use  `!- ` for info boxes, i.e. notes **without a timestamp**.
+
+```txt
+!- General reminder:
+Crosshair placement is low overall in this section.
+```
+
+---
+
 ### Timestamp (`MM:SS - ` or `HH:MM:SS - `)
 
 Create timestamped notes (using hyphens) with:
@@ -36,17 +47,6 @@ You overpeek here.
 Try hugging the left wall instead.
 
 Also audio cue was audible.
-```
-
----
-
-### Info boxes (`!- `)
-
-Use  `!- ` for info boxes, i.e. notes **without a timestamp**.
-
-```txt
-!- General reminder:
-Crosshair placement is low overall in this section.
 ```
 
 ---
