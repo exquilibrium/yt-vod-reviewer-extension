@@ -1,9 +1,11 @@
+![yt-vod-reviewer logo.]([https://myoctocat.com/assets/images/base-octocat.svg](https://github.com/exquilibrium/yt-vod-reviewer-extension/blob/main/vod-reviewer.png))
 # YouTube VOD Reviewer Extension
 
 A lightweight browser extension for **VOD reviewing on YouTube**.
 
 It lets you load a plain `.txt` file containing timestamps, notes, and sections, and displays them in a **custom side panel**—similar to YouTube’s transcript.
 
+![yt-vod-reviewer preview.]([[https://myoctocat.com/assets/images/base-octocat.svg](https://github.com/exquilibrium/yt-vod-reviewer-extension/blob/main/vod-reviewer.png)](https://github.com/exquilibrium/yt-vod-reviewer-extension/blob/main/ytvre-preview.png))
 ---
 
 ## Expected file format
