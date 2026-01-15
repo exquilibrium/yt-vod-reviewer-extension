@@ -1,8 +1,6 @@
 (() => {
     const ROOT_ID = "vodReviewRoot";
-    const TOGGLE_ID = "vodReviewToggle";
     const STORAGE_KEY = "vodReviewNotes_v1";
-    const AUTO_SHOW_KEY = "vod_auto_show_v1";
 
     // --- Utilities ---
     function showPanel() {
@@ -208,13 +206,6 @@
     function createUI() {
         if (document.getElementById(ROOT_ID)) return;
 
-        // Toggle button (always available)
-        const toggle = document.createElement("button");
-        toggle.id = TOGGLE_ID;
-        toggle.className = "vodBtn";
-        toggle.textContent = "VOD Notes";
-        document.body.appendChild(toggle);
-
         const root = document.createElement("div");
         root.id = ROOT_ID;
 
@@ -253,10 +244,6 @@
             root.style.display = v ? "block" : "none";
         }
         setVisible(true);
-
-        toggle.addEventListener("click", () => {
-            setVisible(root.style.display === "none");
-        });
 
         root.querySelector("#vodHideBtn").addEventListener("click", () => setVisible(false));
 
@@ -431,7 +418,6 @@
                 // When navigating to a new watch page, ensure UI exists and re-render
                 if (url.includes("/watch")) {
                     createUI();
-                    loadAutoShowAndApply();
                 }
             }
         });
@@ -439,22 +425,8 @@
         observer.observe(document.documentElement, { childList: true, subtree: true });
     }
 
-    function loadAutoShowAndApply() {
-        chrome.storage.local.get([AUTO_SHOW_KEY], (res) => {
-            const autoShow = Boolean(res[AUTO_SHOW_KEY]);
-
-            // If disabled, keep panel hidden by default
-            // If enabled, show it
-            const root = document.getElementById("vodReviewRoot");
-            if (!root) return;
-
-            root.style.display = autoShow ? "block" : "none";
-        });
-    }
-
     // Boot
     createUI();
-    loadAutoShowAndApply();
     hookSpaNavigation();
 
 
