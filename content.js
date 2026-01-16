@@ -243,7 +243,7 @@
         function setVisible(v) {
             root.style.display = v ? "block" : "none";
         }
-        setVisible(true);
+        setVisible(false);
 
         root.querySelector("#vodHideBtn").addEventListener("click", () => setVisible(false));
 
