@@ -2,6 +2,9 @@
     const ROOT_ID = "vodReviewRoot";
     const STORAGE_KEY = "vodReviewNotes_v1";
 
+    // Auto pause timestamp range
+    let autoPauseRangeEnabled = true;
+
     // --- Utilities ---
     function showPanel() {
         createUI(); // ensures it exists
@@ -9,21 +12,24 @@
         if (root) root.style.display = "block";
     }
 
-
     // Timestamp lines:
     //   0:42 - comment
     //   05:42 — comment
     //   1:02:14 – comment
-    const TIMESTAMP_LINE_RE = /^(\d+:\d{1,2}(?::\d{2})?)\s\-\s(.*)$/;
+    const TIMESTAMP_LINE_RE = /^(\d+:\d{1,2}(?::\d{2})?)\s*[-‐-‒–—―−]\s*(.*)$/;
+
+    // timestamp - timestamp - comment
+    const TIMESTAMP_RANGE_LINE_RE = /^(\d+:\d{1,2}(?::\d{2})?)\s*[-‐-‒–—―−]\s*(\d+:\d{1,2}(?::\d{2})?)\s*[-‐-‒–—―−]\s*(.*)$/;
+
 
     // Section line:
     //   # Section Name
-    const SECTION_LINE_RE = /^#\s(.+)\s*$/;
+    const SECTION_LINE_RE = /^#\s*(.+)\s*$/;
 
     // Info box line:
     //   !- comment
     // (You asked specifically for "!-")
-    const INFO_LINE_RE = /^!\-\s(.*)$/;
+    const INFO_LINE_RE = /^!\s*[-‐-‒–—―−]\s(.*)$/;
 
     function parseTimestampToSeconds(ts) {
         // Allowed formats:
@@ -100,6 +106,38 @@
                 continue;
             }
 
+            // Timestamp RANGE marker (must come before single timestamp)
+            const tsRangeMatch = line.trim().match(TIMESTAMP_RANGE_LINE_RE);
+            if (tsRangeMatch) {
+                const startRaw = tsRangeMatch[1].trim();
+                const endRaw = tsRangeMatch[2].trim();
+
+                const startSeconds = parseTimestampToSeconds(startRaw);
+                const endSeconds = parseTimestampToSeconds(endRaw);
+
+                // If invalid, treat as normal text
+                if (startSeconds == null || endSeconds == null || endSeconds <= startSeconds) {
+                    if (!openItem) openItem = { type: "info", title: "", lines: [] };
+                    openItem.lines.push(line);
+                    continue;
+                }
+
+                pushOpenItem();
+
+                const headerText = (tsRangeMatch[3] || "").trim();
+
+                openItem = {
+                    type: "timestamp",
+                    ts: `${startRaw} - ${endRaw}`,
+                    seconds: startSeconds,
+                    endSeconds,
+                    title: headerText,
+                    lines: []
+                };
+
+                continue;
+            }
+
             // Timestamp marker
             const tsMatch = line.trim().match(TIMESTAMP_LINE_RE);
             if (tsMatch) {
@@ -166,6 +204,45 @@
         return sections;
     }
 
+    let activeRange = null; // { end: number } or null
+
+    function clearActiveRange(video) {
+        activeRange = null;
+        if (video) video.removeEventListener("timeupdate", onRangeTimeUpdate);
+    }
+
+    function onRangeTimeUpdate() {
+        const video = getVideoEl();
+        if (!video || !activeRange) return;
+
+        // small tolerance so we don't miss due to timing granularity
+        const EPS = 0.05;
+        if (video.currentTime + EPS >= activeRange.end) {
+            video.pause();
+            clearActiveRange(video);
+        }
+    }
+
+    function playRange(startSeconds, endSeconds) {
+        const video = getVideoEl();
+        if (!video) return false;
+
+        // reset any prior range watcher
+        clearActiveRange(video);
+
+        // seek + play
+        video.currentTime = startSeconds;
+
+        // store end + attach watcher
+        activeRange = { end: endSeconds };
+        video.addEventListener("timeupdate", onRangeTimeUpdate);
+
+        // play might be blocked by autoplay policies, but click handlers usually allow it
+        const p = video.play();
+        if (p && typeof p.catch === "function") p.catch(() => { /* ignore */ });
+
+        return true;
+    }
 
     function getVideoEl() {
         // Usually exists on watch pages. Might be replaced during navigation.
@@ -193,6 +270,12 @@
             }
             cb(res["vodReviewNotes_v1"] || null);
         });
+
+        chrome.storage.local.get(["vod_auto_pause_range_v1"], (res) => {
+            const v = res["vod_auto_pause_range_v1"];
+            autoPauseRangeEnabled = (v === undefined) ? true : Boolean(v);
+        });
+
     }
 
 
@@ -227,6 +310,8 @@
                 <li>Info Box: <code>'!- '</code></li>
                 <li>Timestamp: <code>'MM:SS - '</code></li>
                 <li>Timestamp: <code>'HH:MM:SS - '</code></li>
+                <li>Timestamp range: <code>'MM:SS - MM:SS - '</code></li>
+                <li>Timestamp range: <code>'HH:MM:SS - HH:MM:SS - '</code></li>
             </ul>
         </div>
         <div id="vodList"></div>
@@ -356,9 +441,21 @@
                         if (item.type === "timestamp") {
                             card.style.cursor = "pointer";
                             card.addEventListener("click", () => {
-                                const ok = seekTo(item.seconds);
+                                let ok = false;
+
+                                if (typeof item.endSeconds === "number") {
+                                    if (autoPauseRangeEnabled) {
+                                        ok = playRange(item.seconds, item.endSeconds);
+                                    } else {
+                                        ok = seekTo(item.seconds);
+                                    }
+                                } else {
+                                    ok = seekTo(item.seconds);
+                                }
+
                                 if (!ok) setStatus("Couldn’t find the video element yet. Try Refresh.");
                             });
+
                         } else {
                             card.style.cursor = "default";
                         }
@@ -445,6 +542,20 @@
             sendResponse({ ok: true });
             return;
         }
+
+        if (msg?.type === "SET_AUTO_PAUSE_RANGE") {
+            autoPauseRangeEnabled = Boolean(msg.value);
+
+            // If user disables while a range is active, stop the watcher immediately
+            if (!autoPauseRangeEnabled) {
+                const video = getVideoEl?.();
+                if (video) clearActiveRange(video); // assuming you added this earlier
+            }
+
+            sendResponse?.({ ok: true });
+            return; // (or return true if your handler is async)
+        }
+
     });
 
 })();

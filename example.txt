@@ -1,0 +1,14 @@
+Unnamed first section is automatically called notes and puts the text below it into an info box.
+
+# Timestamps
+0:12 - Single timestamp example. This jumps to 00:12 in the video.
+
+!- You can fold sections.
+
+Try clicking on "Notes" or "Timestamps".
+
+
+0:42 - 0:55 - Timestamp range example
+Clicking this plays from 0:42 and auto-pauses at 0:55.
+
+You can disable "Auto pause timestamp range" in the options, but it requires a page refresh for it to take effect.
