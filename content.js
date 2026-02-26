@@ -419,7 +419,7 @@
                         if (item.type === "timestamp") {
                             top.textContent = item.ts;
                         } else {
-                            top.textContent = "Info";
+                            top.textContent = ""; // "Info"
                         }
 
                         // Body text
